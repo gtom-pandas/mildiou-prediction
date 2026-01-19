@@ -7,6 +7,7 @@
 <div align="center">
   <img src="docs/roverglobal.jpeg" alt="Large view of the rover" width="800"/>
 </div>
+
 ## 📖 Overview
 
 **Mildiou-AI** is a comprehensive IoT solution designed for precision viticulture. It is an embedded system capable of predicting **Downy Mildew** (Mildiou) risks 24 to 48 hours in advance by analyzing the local micro-climate using an **Artificial Neural Network (ANN)** running directly on a microcontroller (Edge Computing).
