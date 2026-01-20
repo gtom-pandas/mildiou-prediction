@@ -10,7 +10,7 @@
 
 ## 📖 Overview
 
-**Mildiou-AI** is a comprehensive IoT solution designed for precision viticulture. It is an embedded system capable of predicting **Downy Mildew** (Mildiou) risks 24 to 48 hours in advance by analyzing the local micro-climate using an **Artificial Neural Network (ANN)** running directly on a microcontroller (Edge Computing).
+**Mildiou-AI** is a comprehensive IoT solution designed for precision viticulture. It is an embedded system capable of predicting **Downy Mildew** (Mildiou) risks in advance by analyzing the local micro-climate using an **Artificial Neural Network (ANN)** running directly on a microcontroller (Edge Computing).
 
 The system is mounted on a remote-controlled **All-Terrain Rover** to perform localized measurements and transmits its analysis via **LoRa** (Long Range) to a supervision station, without requiring an Internet connection.
 
@@ -20,13 +20,13 @@ The system is mounted on a remote-controlled **All-Terrain Rover** to perform lo
 
 The project consists of three independent, interconnected units:
 
-### 1. Analysis Unit (The Rover)
+### 1. Analysis Unit (The Rover with sensors)
 
 The "brain" of the system, embedded on the robot.
 
 | Component | Description |
 |-----------|-------------|
-| **Hardware** | Arduino UNO R4 WiFi (Renesas 32-bit) |
+| **Hardware** | 2 Arduino UNO R4 WiFi (Renesas 32-bit) |
 | **Sensors** | DHT11 (Temp/Hum), LPS25 (Atmospheric Pressure) |
 | **Intelligence** | Feedforward Neural Network (MLP) coded in native C++ |
 | **Comms** | LoRa RYLR998 (Long-range) + NRF24L01 (Control reception) |
@@ -45,8 +45,6 @@ Ergonomic interface for rover mobility.
 
 Fixed user interface for reading risk levels.
 
-![Display Screen](docs/displaysensor.jpeg)
-
 | Component | Description |
 |-----------|-------------|
 | **Hardware** | Arduino UNO R3 + DFRobot LCD12864 Shield |
@@ -57,7 +55,7 @@ Fixed user interface for reading risk levels.
 
 ## 🧠 Embedded Artificial Intelligence
 
-The core of the project is a dense neural network (Deep Learning) optimized for memory-constrained microcontrollers.
+The core of the project is a dense neural network optimized for memory-constrained microcontrollers.
 
 ### Model Architecture
 
@@ -141,9 +139,9 @@ python pipeline_v3.py
 
 ## 🔮 Roadmap & Future Improvements
 
-- [ ] **Power Optimization:** Migration to "Deep Sleep" logic for solar autonomy.
 - [ ] **Data Logging:** Adding an SD Card module for long-term local archiving.
 - [ ] **ESP32 Migration:** Porting code to leverage dual-core architecture (AI on Core 0, Radio on Core 1).
+- [ ] **Bigger ANN** Training a bigger model with more input features and layers.
 
 ---
 
@@ -158,6 +156,6 @@ python pipeline_v3.py
 
 ---
 
-> 🍇 *Project realized as part of an IoT Engineering curriculum.*
+> 🍇 *Project realized as part of an IoT Engineering curriculum - Institut Agro Dijon.*
 >
 > 📧 Contact: [GitHub](https://github.com/gtom-pandas) | [Kaggle](https://www.kaggle.com/ttgrcgrc)
