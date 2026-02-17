@@ -18,13 +18,13 @@
 RF24 radio(CE_PIN, CSN_PIN);
 const byte adresse[6] = "ROVE1";
 
-// ==================== STRUCTURE (4 AXES + BOUTON) ====================
+// ==================== STRUCTURE (4 AXES + button) ====================
 struct DataPackage {
   int16_t lx;  // Left X
   int16_t ly;  // Left Y
   int16_t rx;  // Right X
   int16_t ry;  // Right Y
-  uint8_t btn; // Bouton
+  uint8_t btn; // button
 };
 
 DataPackage data;
@@ -49,7 +49,7 @@ void setup() {
 
   Serial.println(F("=== RECEPTEUR R4 - TANK DRIVE ==="));
   Serial.print(F("sizeof(DataPackage) = "));
-  Serial.println(sizeof(DataPackage)); // Doit afficher 9
+  Serial.println(sizeof(DataPackage)); 
 
   if (!radio.begin()) {
     Serial.println(F("[ERREUR] NRF24!"));
@@ -68,7 +68,6 @@ void setup() {
 
 // ==================== LOOP ====================
 void loop() {
-  // Réception
   if (radio.available()) {
     radio.read(&data, sizeof(DataPackage));
     lastSignal = millis();
@@ -96,38 +95,34 @@ void loop() {
   }
 }
 
-// ==================== TANK DRIVE ====================
+// ==================== rover DRIVE ====================
 void processTankDrive() {
   /*
    * Tank Drive:
-   * - Joystick Gauche Y (ly) -> Moteur Gauche
-   * - Joystick Droit Y (ry)  -> Moteur Droit
+   * - Joystick left Y (ly) -> left engine 
+   * - Joystick right Y (ry)  -> right engine
    *
-   * Joystick: 0-1023, centre = 512
-   * ATTENTION: Sur certains joysticks, pousser vers le HAUT donne une valeur
-   * BASSE Il faut donc INVERSER le signe
    */
 
   // Centrer autour de zéro et INVERSER (512 - valeur au lieu de valeur - 512)
   int leftJoy = 512 - data.ly;  // INVERSÉ
   int rightJoy = 512 - data.ry; // INVERSÉ
 
-  // Appliquer zone morte
+  // dead zone for safety
   if (abs(leftJoy) < DEADZONE)
     leftJoy = 0;
   if (abs(rightJoy) < DEADZONE)
     rightJoy = 0;
 
-  // Mapper vers -255 à +255
+  // mapping between -255 and +255
   int leftSpeed = map(leftJoy, -512, 511, -255, 255);
   int rightSpeed = map(rightJoy, -512, 511, -255, 255);
 
-  // Appliquer aux moteurs
   setMotorLeft(leftSpeed);
   setMotorRight(rightSpeed);
 }
 
-// ==================== MOTEURS ====================
+// ==================== engines ====================
 void setMotorLeft(int speed) {
   if (speed > 0) {
     digitalWrite(IN1, HIGH);
@@ -145,14 +140,14 @@ void setMotorLeft(int speed) {
 }
 
 void setMotorRight(int speed) {
-  // INVERSÉ: IN3/IN4 échangés pour compenser le câblage du moteur
+  // switched: IN3/IN4 for compensated the motor wiring
   if (speed > 0) {
-    digitalWrite(IN3, LOW);  // INVERSÉ (était HIGH)
-    digitalWrite(IN4, HIGH); // INVERSÉ (était LOW)
+    digitalWrite(IN3, LOW);  // switched (was HIGH)
+    digitalWrite(IN4, HIGH); // switched (was LOW)
     analogWrite(ENB, speed);
   } else if (speed < 0) {
-    digitalWrite(IN3, HIGH); // INVERSÉ (était LOW)
-    digitalWrite(IN4, LOW);  // INVERSÉ (était HIGH)
+    digitalWrite(IN3, HIGH); // switched (was LOW)
+    digitalWrite(IN4, LOW);  // switched (was HIGH)
     analogWrite(ENB, -speed);
   } else {
     digitalWrite(IN3, LOW);
