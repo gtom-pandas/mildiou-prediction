@@ -4,9 +4,7 @@
 ![Platform](https://img.shields.io/badge/Platform-Arduino%20R4%20%7C%20Python-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-<div align="center">
-  <img src="docs/roverglobal.jpeg" alt="Large view of the rover" width="800"/>
-</div>
+<img src="docs/roverglobal.jpeg" alt="Large view of the rover" width="800" align="center"/>
 
 ## 📖 Overview
 
