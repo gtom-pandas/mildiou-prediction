@@ -10,13 +10,14 @@
 
 ## 📖 Overview
 
-**Mildiou-AI** is a comprehensive IoT solution designed for precision viticulture. It is an embedded system capable of predicting **Downy Mildew** (Mildiou) risks in advance by analyzing the local micro-climate using an **Artificial Neural Network (ANN)** running directly on a microcontroller (Edge Computing).
+**Mildiou-AI** is a comprehensive IoRT solution designed for precision viticulture. It is an embedded system capable of predicting **Downy Mildew** (Mildiou) risks in advance by analyzing the local micro-climate using an **Artificial Neural Network (ANN)** running directly on a microcontroller (Edge Computing).
 
 The system is mounted on a remote-controlled **All-Terrain Rover** to perform localized measurements and transmits its analysis via **LoRa** (Long Range) to a supervision station, without requiring an Internet connection.
 
+This project was really meaningful to me and very relevant, afterward i decide to buy myself some electronic components (arduino, camera, raspberry Pi) and I will start a new personal project related to agronomy field 
 ---
 
-## ⚙️ System Architecture
+## System Architecture
 
 The project consists of three independent, interconnected units:
 
@@ -53,7 +54,7 @@ Fixed user interface for reading risk levels.
 
 ---
 
-## 🧠 Embedded Artificial Intelligence
+## Embedded Artificial Intelligence
 
 The core of the project is a dense neural network optimized for memory-constrained microcontrollers.
 
@@ -77,7 +78,7 @@ We use a "Funnel" structure to extract complex climatic features:
 
 ---
 
-## 📂 Repository Structure
+## Repository Structure
 
 Here is the organization of the project source code:
 
@@ -108,12 +109,12 @@ Here is the organization of the project source code:
 
 ---
 
-## 🚀 Installation & Setup
+## Installation & Setup
 
 ### Hardware Prerequisites
 
 - Arduino IDE 2.0+
-- Python 3.8+ (for re-training)
+- Python 3.8+ (for re-training for example with another dataset with specific measures from your environement)
 
 ### 1. Flashing Microcontrollers
 
@@ -137,7 +138,7 @@ python pipeline_v3.py
 
 ---
 
-## 🔮 Roadmap & Future Improvements
+## Roadmap & Future Improvements
 
 - [ ] **Data Logging:** Adding an SD Card module for long-term local archiving.
 - [ ] **ESP32 Migration:** Porting code to leverage dual-core architecture (AI on Core 0, Radio on Core 1).
@@ -145,7 +146,7 @@ python pipeline_v3.py
 
 ---
 
-## 🤝 Credits & Libraries
+## Credits & Libraries
 
 | Library | Author | Usage |
 |---------|--------|-------|
@@ -156,6 +157,6 @@ python pipeline_v3.py
 
 ---
 
-> 🍇 *Project realized as part of an IoT Engineering curriculum - Institut Agro Dijon.*
+> *Project realized in autonomy as part of an IoRT Engineering curriculum - Institut Agro Dijon.*
 >
-> 📧 Contact: [GitHub](https://github.com/gtom-pandas) | [Kaggle](https://www.kaggle.com/ttgrcgrc)
+> Contact: [GitHub](https://github.com/gtom-pandas) | [Kaggle](https://www.kaggle.com/ttgrcgrc)
