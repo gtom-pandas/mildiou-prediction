@@ -1,32 +1,33 @@
 /*
- * ============================================================
- * SYSTÈME DE PRÉDICTION DU MILDIOU - VERSION DEV
- * ============================================================
- * • MODE SIMULATION uniquement (pas de capteurs réels)
- * • Affichage sur LCD 16x2 I2C
- * • Réseau de neurones entraîné
- * • Pour tests et démonstrations
- *
- * Hardware requis:
- * - Arduino UNO R4 WiFi
- * - LCD 16x2 I2C (adresse 0x27 ou 0x3F)
- *
- * Commandes disponibles:
- * - simulate / highrisk / lowrisk :  Charger scénarios
- * - predict :  Faire une prédiction
- * - testlcd : Tester l'écran
- * - help : Aide complète
+*System Overview:
+*
+*Simulation Mode Only: No real sensors involved.
+*Display: Uses a 16x2 I2C LCD.
+*Neural Network: Trained for predictions.
+*Purpose: Designed for testing and demonstrations.
+*
+*Required Hardware:
+*
+*Arduino UNO R4 WiFi
+*16x2 I2C LCD (Address 0x27 or 0x3F)
+*
+*Available Commands:
+*
+*-simulate / highrisk / lowrisk: Load scenarios.
+*-predict: Make a prediction.
+*-testlcd: Test the LCD screen.
+*-help: Complete help.
+
  */
 
-// ==================== BIBLIOTHÈQUES ====================
+// ==================== libraries ====================
 #include "mildiou_nn_weights.h"
 #include <LiquidCrystal_I2C.h>
 #include <Wire.h>
 
-// ==================== CONFIGURATION LCD ====================
-LiquidCrystal_I2C lcd(0x27, 16, 2); // Change en 0x3F si nécessaire
+// ==================== config LCD ====================
+LiquidCrystal_I2C lcd(0x27, 16, 2); 
 
-// Caractères personnalisés
 byte iconTemp[8] = {0b00100, 0b01010, 0b01010, 0b01110,
                     0b01110, 0b11111, 0b11111, 0b01110};
 
@@ -39,11 +40,11 @@ byte iconAlert[8] = {0b00100, 0b01110, 0b01110, 0b01110,
 byte iconOK[8] = {0b00000, 0b00001, 0b00011, 0b10110,
                   0b11100, 0b01000, 0b00000, 0b00000};
 
-// ==================== CONFIGURATION SYSTÈME ====================
+// ==================== config SYS ====================
 #define HISTORY_SIZE 14
 #define MIN_DAYS_FOR_PREDICTION 3
 
-// Paramètres mildiou
+// mildew features 
 #define TEMP_MIN_FAVORABLE 10.0
 #define TEMP_MAX_FAVORABLE 30.0
 #define TEMP_OPTIMAL_MIN 15.0
@@ -54,7 +55,6 @@ byte iconOK[8] = {0b00000, 0b00001, 0b00011, 0b10110,
 #define PRESSURE_LOW 1008.0
 #define PRESSURE_DROP_THRESHOLD 5.0
 
-// ==================== STRUCTURES ====================
 struct DailyData {
   float meantemp;
   float humidity;
@@ -62,13 +62,13 @@ struct DailyData {
   bool valid;
 };
 
-// ==================== VARIABLES GLOBALES ====================
+
 DailyData history[HISTORY_SIZE];
 int historyIndex = 0;
 int validDays = 0;
 int currentDay = 0;
 
-// Réseau de neurones
+// RNN
 const int NUM_FEATURES = 25;
 float inputFeatures[NUM_FEATURES];
 
@@ -86,7 +86,6 @@ float bias_L3[L3_OUT];
 float feature_means[NUM_FEATURES];
 float feature_stds[NUM_FEATURES];
 
-// Dernières probabilités (pour affichage)
 float lastProba[3] = {0, 0, 0};
 
 // ==================== SETUP ====================
@@ -130,7 +129,7 @@ void loop() {
   delay(10);
 }
 
-// ==================== AFFICHAGE LCD ====================
+// ==================== display LCD ====================
 
 void displayWelcomeScreen() {
   lcd.clear();
@@ -182,7 +181,7 @@ void displayRiskLevel(int prediction, float confidence) {
   lcd.clear();
 
   switch (prediction) {
-  case 0: // FAIBLE
+  case 0: // low
     Serial.println(F("        [LCD] RISQUE FAIBLE"));
     lcd.setCursor(0, 0);
     lcd.write(3);
@@ -198,7 +197,7 @@ void displayRiskLevel(int prediction, float confidence) {
     }
     break;
 
-  case 1: // MOYEN
+  case 1: // medium
     Serial.println(F("        [LCD] RISQUE MOYEN"));
     lcd.setCursor(0, 0);
     lcd.write(2);
@@ -215,7 +214,7 @@ void displayRiskLevel(int prediction, float confidence) {
     }
     break;
 
-  case 2: // ÉLEVÉ
+  case 2: // high
     Serial.println(F("        [LCD] RISQUE ELEVE!!! "));
 
     for (int scroll = 0; scroll < 3; scroll++) {
@@ -257,7 +256,7 @@ void displayRiskLevel(int prediction, float confidence) {
 void displayProbabilities(int prediction, float confidence) {
   lcd.clear();
 
-  // Écran 1: Confiance
+  // screen 1: reliance
   lcd.setCursor(0, 0);
   lcd.print("Confiance:");
   lcd.setCursor(0, 1);
@@ -265,7 +264,7 @@ void displayProbabilities(int prediction, float confidence) {
   lcd.print("%");
   delay(2500);
 
-  // Écran 2: Détails risques
+  // screen 2: risks details
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("F:");
@@ -322,7 +321,7 @@ void lcdTest() {
   displayMessage("Test OK!", "LCD fonctionne", 2000);
 }
 
-// ==================== INITIALISATION ====================
+// ==================== INIT ====================
 
 void printWelcome() {
   Serial.println(
@@ -559,7 +558,7 @@ float calculateRiskAccumulator() {
   return min(risk / 2.0, 1.0);
 }
 
-// ==================== RÉSEAU DE NEURONES ====================
+// ==================== RNN ====================
 
 float sigmoid(float x) {
   if (x < -10)
@@ -621,7 +620,7 @@ int makePrediction() {
 
   softmax(layer3_raw, output, L3_OUT);
 
-  // Sauvegarder pour affichage
+  // save for display
   for (int i = 0; i < 3; i++) {
     lastProba[i] = output[i];
   }
@@ -702,7 +701,7 @@ void printProbability(float prob) {
   Serial.print(F(" %"));
 }
 
-// ==================== SIMULATIONS ====================
+// ==================== simulations ====================
 
 void simulateData() {
   Serial.println(F("\n═══════════════════════════════════════════"));
@@ -821,7 +820,7 @@ void simulateLowRisk() {
   displayCurrentData();
 }
 
-// ==================== AFFICHAGE ====================
+// ==================== display ====================
 
 void printHistory() {
   Serial.println(F("\n═══════════════════════════════════════════"));
@@ -918,7 +917,7 @@ void printHelp() {
       F("╚════════════════════════════════════════════════════════╝\n"));
 }
 
-// ==================== COMMANDES ====================
+// ==================== cmd ====================
 
 void handleSerialCommands() {
   if (Serial.available()) {
