@@ -1,55 +1,53 @@
 /*
  * ============================================================
- * SYSTÈME DE PRÉDICTION DU MILDIOU - VERSION PRODUCTION V2
+ * Downy Mildew Prediction System - Production Version V2
  * ============================================================
- * NOUVEAUTÉS V2:
- * • Classe NeuralNetwork OOP générique
- * • Feedback Loop: correction des prédictions via EEPROM
- * • Watchdog Timer 8s pour fiabilité 24/7
- * • Alertes WiFi (HTTP) optionnelles
- *
- * Hardware requis:
- * - Arduino UNO R4 WiFi
- * - LCD 16x2 I2C (adresse 0x27 ou 0x3F)
- * - DHT11 (VMA311) sur pin D2
- * - LPS25 sur I2C (A4/A5)
- *
- * Commandes Série:
- * - measure : Force une mesure
- * - endday  : Force la fin de journée (tests)
- * - predict : Force une prédiction
- * - CORRECT_PREDICTION <0|1|2> : Corrige dernière prédiction
- * - DUMP_ERRORS : Export CSV des erreurs sauvegardées
- * - CLEAR_ERRORS : Efface l'EEPROM d'erreurs
- */
-
-// ==================== BIBLIOTHÈQUES ====================
+* Generic NeuralNetwork OOP Class: Utilizes object-oriented programming for the neural network.
+* Feedback Loop: Corrects predictions via EEPROM.
+* 8s Watchdog Timer: Ensures 24/7 reliability.
+* Optional WiFi Alerts (HTTP): For real-time communication.
+*
+* Required Hardware:
+*
+* Arduino UNO R4 WiFi
+* 16x2 I2C LCD (Address 0x27 or 0x3F)
+* DHT11 (VMA311) on pin D2
+* LPS25 on I2C (A4/A5)
+*
+* Serial Commands:
+*
+*-measure: Forces a measurement.
+*-endday: Forces end of day (for testing).
+*-predict: Forces a prediction.
+*-CORRECT_PREDICTION <0|1|2>: Corrects the last prediction.
+*-DUMP_ERRORS: Exports CSV of saved errors.
+*-CLEAR_ERRORS: Clears the EEPROM of errors.
+*/
+// ==================== libraries ====================
 #include "mildiou_nn_weights.h"
 #include <Adafruit_LPS2X.h>
 #include <Adafruit_Sensor.h>
 #include <DHT.h>
-#include <EEPROM.h> // Pour feedback loop
+#include <EEPROM.h> //  feedback loop
 #include <LiquidCrystal_I2C.h>
 #include <WDT.h>    // Watchdog Timer R4
-#include <WiFiS3.h> // WiFi intégré R4 (optionnel)
+#include <WiFiS3.h> // integrated wifi R4
 #include <Wire.h>
 
-// ==================== CONFIGURATION WiFi (OPTIONNEL) ====================
-// Décommenter et configurer pour activer les alertes WiFi
-// #define WIFI_ENABLED
+// ==================== config WiFi ====================
 #ifdef WIFI_ENABLED
 const char *WIFI_SSID = "VOTRE_SSID";
 const char *WIFI_PASS = "VOTRE_MOT_DE_PASSE";
 const char *ALERT_URL = "http://votre-serveur.com/api/alert";
 #endif
 
-// ==================== CONFIGURATION LoRa RYLR998 ====================
-#define LORA_ENABLED // Commenter pour désactiver LoRa
+// ==================== config LoRa RYLR998 ====================
+#define LORA_ENABLED 
 #define LORA_ADDRESS 1
 #define LORA_DEST_ADDRESS 2
 #define LORA_NETWORK_ID 18
 
-// ==================== CONFIGURATION CAPTEURS ====================
+// ==================== config sensors ====================
 #define DHT_PIN 2
 #define DHT_TYPE DHT11
 
@@ -57,7 +55,7 @@ DHT dht(DHT_PIN, DHT_TYPE);
 Adafruit_LPS25 lps;
 bool lpsAvailable = false;
 
-// ==================== CONFIGURATION LCD ====================
+// ==================== config LCD ====================
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 byte iconTemp[8] = {0b00100, 0b01010, 0b01010, 0b01110,
@@ -72,15 +70,15 @@ byte iconAlert[8] = {0b00100, 0b01110, 0b01110, 0b01110,
 byte iconOK[8] = {0b00000, 0b00001, 0b00011, 0b10110,
                   0b11100, 0b01000, 0b00000, 0b00000};
 
-// ==================== CONFIGURATION SYSTÈME ====================
+// ==================== config SYS ====================
 #define HISTORY_SIZE 14
 #define MIN_DAYS_FOR_PREDICTION 3
 
-// === MODE TEST (1 mesure/min, journée = 24 min) ===
+// === test mode (1 measure/min, a "day" = 24 min) ===
 const unsigned long MEASURE_INTERVAL = 60000;
 const unsigned long DAY_DURATION = 1440000;
 
-// === MODE PRODUCTION (décommenter) ===
+// === production mode (uncomment to active) ===
 // const unsigned long MEASURE_INTERVAL = 3600000;
 // const unsigned long DAY_DURATION = 86400000;
 
@@ -92,7 +90,7 @@ float humSum = 0;
 float pressSum = 0;
 int measureCount = 0;
 
-// Paramètres mildiou
+// mildew features (from litterature)
 #define TEMP_MIN_FAVORABLE 10.0
 #define TEMP_MAX_FAVORABLE 30.0
 #define TEMP_OPTIMAL_MIN 15.0
@@ -103,7 +101,6 @@ int measureCount = 0;
 #define PRESSURE_LOW 1008.0
 #define PRESSURE_DROP_THRESHOLD 5.0
 
-// ==================== STRUCTURES ====================
 struct DailyData {
   float meantemp;
   float humidity;
@@ -111,14 +108,14 @@ struct DailyData {
   bool valid;
 };
 
-// Structure pour feedback loop EEPROM
+// Structure for feedback loop EEPROM
 struct ErrorSample {
-  uint8_t day;       // Jour relatif (0-255)
-  int8_t temp;       // Température arrondie
-  uint8_t humidity;  // Humidité arrondie
-  uint16_t pressure; // Pression - 900 (économie mémoire)
-  uint8_t predicted; // Classe prédite (0-2)
-  uint8_t actual;    // Classe corrigée (0-2)
+  uint8_t day;       // relative day (0-255)
+  int8_t temp;       // rounded temperature
+  uint8_t humidity;  // rounded humidity
+  uint16_t pressure; // pressure - 900 (prevent memory scarcity)
+  uint8_t predicted; // predicted class (0-2)
+  uint8_t actual;    // corrected class (0-2)
 };
 
 // EEPROM Layout
@@ -126,22 +123,22 @@ struct ErrorSample {
 #define EEPROM_ERROR_DATA_ADDR 1  // Début des ErrorSamples
 #define MAX_ERROR_SAMPLES 60      // 60 × 8 bytes = 480 bytes (< 512)
 
-// ==================== VARIABLES GLOBALES ====================
+// ==================== global variables ====================
 DailyData history[HISTORY_SIZE];
 int historyIndex = 0;
 int validDays = 0;
 int currentDay = 0;
 
-// Réseau de neurones - Architecture dynamique (lue depuis .h)
+// RNN - dynamique architecture (read from .h)
 const int NUM_FEATURES = NN_INPUT_SIZE; // 25
 float inputFeatures[NUM_FEATURES];
 
-// Constantes de couches (MODIFIÉ pour [25, 20, 10, 3])
+//layers constants
 const int L1_IN = NN_LAYERS[0], L1_OUT = NN_LAYERS[1]; // 25 -> 20
 const int L2_IN = NN_LAYERS[1], L2_OUT = NN_LAYERS[2]; // 20 -> 10
 const int L3_IN = NN_LAYERS[2], L3_OUT = NN_LAYERS[3]; // 10 -> 3
 
-// Buffers pour poids (dimensionnés pour nouvelle architecture)
+// Buffers for wieghts 
 float weights_L1[25][20]; // Max sizes
 float bias_L1[20];
 float weights_L2[20][10];
@@ -153,7 +150,7 @@ float feature_means[NUM_FEATURES];
 float feature_stds[NUM_FEATURES];
 
 float lastProba[3] = {0, 0, 0};
-int lastPrediction = -1; // Pour feedback loop
+int lastPrediction = -1; // feedback loop
 
 // ==================== SETUP ====================
 void setup() {
@@ -163,11 +160,11 @@ void setup() {
   delay(1000);
 
   // *** WATCHDOG TIMER INIT (8 secondes) ***
-  // Si le code plante pendant > 8s, l'Arduino reboot automatiquement
+  // reboot if the code crash for >8s
   WDT.begin(8000);
   Serial.println(F("[INIT] Watchdog Timer active (8s timeout)"));
 
-  // Initialiser LCD
+  // init LCD
   lcd.init();
   lcd.backlight();
   lcd.clear();
@@ -185,12 +182,12 @@ void setup() {
   lcd.print("Version PROD V2");
   delay(2000);
 
-  WDT.refresh(); // Caresser le chien pendant init
+  WDT.refresh();
 
   printWelcome();
 
 #ifdef WIFI_ENABLED
-  // Initialiser WiFi (optionnel)
+  // init WiFi 
   lcd.clear();
   lcd.print("Connexion WiFi..");
   Serial.print(F("[WIFI] Connexion a "));
@@ -214,7 +211,7 @@ void setup() {
   }
 #endif
 
-  // Initialiser capteurs
+  // init sensors
   Serial.println(F("\n[MODE] PRODUCTION V2 - Capteurs reels"));
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -224,7 +221,7 @@ void setup() {
 
   initializeHistory();
   initializeWeights();
-  initializeEEPROM(); // Nouveau: init feedback loop
+  initializeEEPROM(); 
   WDT.refresh();
 
   dayStartTime = millis();
@@ -234,36 +231,36 @@ void setup() {
   Serial.println(F("Mesure auto toutes les heures"));
   Serial.println(F("Tapez 'help' pour commandes\n"));
 
-  // Première mesure immédiate
+  // first measure
   delay(2000);
   takeRealMeasurement();
   WDT.refresh();
 
 #ifdef LORA_ENABLED
-  // Initialiser LoRa via Serial1 (pins 0/1)
+  // init LoRa via Serial1 (pins 0/1)
   Serial1.begin(115200);
-  delay(1000); // Laisser le temps au module de démarrer
+  delay(1000); 
 
   Serial.println(F("[LORA] Configuration Forcee Emetteur..."));
 
-  // 1. Reset usine
+  // 1. Reset 
   Serial1.println("AT+RESET");
   delay(1000);
   WDT.refresh();
 
-  // 2. Adresse émetteur = 1
+  // 2. sender adress = 1
   Serial1.println("AT+ADDRESS=1");
   delay(200);
 
-  // 3. Network ID commun
+  // 3. common Network ID commun
   Serial1.println("AT+NETWORKID=18");
   delay(200);
 
-  // 4. FORCER LA FRÉQUENCE (868.5 MHz Europe)
+  // 4. freq (868.5 MHz Europe)
   Serial1.println("AT+BAND=868500000");
   delay(200);
 
-  // 5. FORCER LES PARAMÈTRES (SF9, BW125k, robuste)
+  // 5. parameters (SF9, BW125k, robuste)
   Serial1.println("AT+PARAMETER=9,7,1,12");
   delay(200);
 
@@ -274,37 +271,36 @@ void setup() {
 
 // ==================== LOOP ====================
 void loop() {
-  WDT.refresh(); // *** IMPORTANT: Refresh watchdog à chaque cycle ***
+  WDT.refresh(); 
 
   unsigned long currentTime = millis();
 
-  // Mesure automatique toutes les heures
+  // auto measure every hour
   if (currentTime - lastMeasureTime >= MEASURE_INTERVAL) {
     lastMeasureTime = currentTime;
     takeRealMeasurement();
     WDT.refresh();
   }
 
-  // Vérifier fin de journée (24h)
+  // end of day = 24 measures
   if (currentTime - dayStartTime >= DAY_DURATION) {
     endOfDayProduction();
     WDT.refresh();
   }
 
-  // Gérer commandes manuelles
+  // if needed to handle manual commands
   handleSerialCommands();
 
   delay(10);
 }
 
-// ==================== GESTION CAPTEURS ====================
+// ==================== sensors monitoring ====================
 
 void initRealSensors() {
   Serial.println(F("[INIT] Initialisation capteurs..."));
 
-  // DHT11 (VMA311)
   dht.begin();
-  delay(2000); // DHT11 nécessite plus de temps au démarrage
+  delay(2000);
 
   float testTemp = dht.readTemperature();
   float testHum = dht.readHumidity();
@@ -317,29 +313,29 @@ void initRealSensors() {
     lcd.print("DHT11 ERREUR!");
     delay(3000);
   } else {
-    // Note: DHT11 retourne des valeurs entières (pas de décimales)
+  
     Serial.print(F("        ✓ DHT11 OK - T="));
-    Serial.print(testTemp, 0); // Pas de décimale pour DHT11
+    Serial.print(testTemp, 0); 
     Serial.print(F("C H="));
-    Serial.print(testHum, 0); // Pas de décimale pour DHT11
+    Serial.print(testHum, 0); 
     Serial.println(F("%"));
     lcd.setCursor(0, 1);
     lcd.print("DHT11 OK!");
     delay(1000);
   }
 
-  // LPS25 (Barometre de precision) via Adafruit_LPS2X
+  // LPS25 via Adafruit_LPS2X
   Wire.begin();
-  // LPS25 adresse par defaut: 0x5C ou 0x5D
+  
   if (lps.begin_I2C(0x5C) || lps.begin_I2C(0x5D)) {
     lpsAvailable = true;
     lps.setDataRate(LPS25_RATE_12_5_HZ);
 
-    // Lecture via sensors_event_t
+    // reading via sensors_event_t
     sensors_event_t pressure;
     sensors_event_t temp;
     lps.getEvent(&pressure, &temp);
-    float testPress = pressure.pressure; // en hPa
+    float testPress = pressure.pressure; // in hPa
 
     Serial.print(F("        \u2713 LPS25 OK - P="));
     Serial.print(testPress, 1);
@@ -365,32 +361,29 @@ void takeRealMeasurement() {
 
   displayMessage("Mesure.. .", NULL, 500);
 
-  // Lire DHT22
+  // read DHT22
   float temp = dht.readTemperature();
   float hum = dht.readHumidity();
 
-  // Attendre stabilisation
   delay(100);
 
-  // Relire pour confirmation
   if (isnan(temp) || isnan(hum)) {
     delay(2000);
     temp = dht.readTemperature();
     hum = dht.readHumidity();
   }
 
-  // Lire LPS25 via sensors_event_t
+  // read LPS25 via sensors_event_t
   float press = 0;
   if (lpsAvailable) {
     sensors_event_t pressure_event;
     sensors_event_t temp_event;
     lps.getEvent(&pressure_event, &temp_event);
-    press = pressure_event.pressure; // en hPa
+    press = pressure_event.pressure; // in hPa
   } else {
     press = 1013.0;
   }
 
-  // Vérifier validité
   if (isnan(temp) || isnan(hum)) {
     Serial.println(F("⚠ ERREUR LECTURE DHT22!  "));
     displayMessage("ERREUR DHT22!", "Verifier cable", 3000);
@@ -398,7 +391,6 @@ void takeRealMeasurement() {
     return;
   }
 
-  // Vérifier plage réaliste
   if (temp < -20 || temp > 60 || hum < 0 || hum > 100) {
     Serial.println(F("⚠ Valeurs hors limites! "));
     Serial.print(F("  T="));
@@ -410,7 +402,7 @@ void takeRealMeasurement() {
     return;
   }
 
-  // Afficher sur série
+  // display
   Serial.print(F("  Temperature:     "));
   Serial.print(temp, 1);
   Serial.println(F(" C"));
@@ -423,11 +415,11 @@ void takeRealMeasurement() {
   Serial.print(press, 1);
   Serial.println(F(" hPa"));
 
-  // Afficher sur LCD
+  // display on LCD
   displayMeasurement(temp, hum, press);
   delay(3000);
 
-  // Accumuler pour moyenne journalière
+  // accumulate for daily mean
   tempSum += temp;
   humSum += hum;
   pressSum += press;
@@ -438,13 +430,13 @@ void takeRealMeasurement() {
   Serial.print(F(" (moyenne calculee a minuit)"));
   Serial.println();
 
-  // Prochaine mesure dans
-  unsigned long nextIn = MEASURE_INTERVAL / 60000; // Minutes
+  // next measure in
+  unsigned long nextIn = MEASURE_INTERVAL / 60000; 
   Serial.print(F("  Prochaine mesure dans "));
   Serial.print(nextIn);
   Serial.println(F(" min"));
 
-  // Mettre à jour affichage
+  // update display
   displayCurrentData();
 }
 
@@ -464,7 +456,7 @@ void endOfDayProduction() {
 
   displayMessage("FIN DE JOURNEE", "Calcul moyenne", 2000);
 
-  // Calculer moyennes
+  // calculate averages
   float avgTemp = tempSum / measureCount;
   float avgHum = humSum / measureCount;
   float avgPress = pressSum / measureCount;
@@ -484,7 +476,7 @@ void endOfDayProduction() {
   Serial.print(avgPress, 1);
   Serial.println(F(" hPa"));
 
-  // Afficher sur LCD
+  // display on LCD
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Moy jour:");
@@ -497,7 +489,7 @@ void endOfDayProduction() {
   lcd.print("hPa");
   delay(3000);
 
-  // Stocker dans historique
+  // Store in history
   history[historyIndex].meantemp = avgTemp;
   history[historyIndex].humidity = avgHum;
   history[historyIndex].meanpressure = avgPress;
@@ -508,26 +500,26 @@ void endOfDayProduction() {
     validDays++;
   currentDay++;
 
-  Serial.print(F("\n  ✓ Jour enregistre ("));
+  Serial.print(F("\n  ✓ Jour enregistré ("));
   Serial.print(validDays);
   Serial.print(F("/"));
   Serial.print(HISTORY_SIZE);
   Serial.println(F(")"));
 
-  // Réinitialiser accumulateurs
+  // re init accumulators
   tempSum = 0;
   humSum = 0;
   pressSum = 0;
   measureCount = 0;
   dayStartTime = millis();
 
-  // Prédiction si assez de données
+  // predict if enough datas
   if (validDays >= MIN_DAYS_FOR_PREDICTION) {
     Serial.println(F("\n  → PREDICTION AUTOMATIQUE"));
     displayMessage("PREDICTION", "En cours...", 1000);
     int prediction = makePrediction();
   } else {
-    Serial.print(F("\n  ⏳ Encore "));
+    Serial.print(F("\n  Encore "));
     Serial.print(MIN_DAYS_FOR_PREDICTION - validDays);
     Serial.println(F(" jour(s) avant prediction"));
 
@@ -545,7 +537,7 @@ void endOfDayProduction() {
       F("╚═══════════════════════════════════════════════════════╝\n"));
 
 #ifdef LORA_ENABLED
-  // === ENVOI LORA QUOTIDIEN ===
+  // === send daily LORA  ===
   sendLoRaReport(avgTemp, avgHum, avgPress,
                  lastPrediction >= 0 ? lastPrediction : 0);
 #endif
@@ -553,7 +545,7 @@ void endOfDayProduction() {
   displayCurrentData();
 }
 
-// ==================== ENVOI LORA ====================
+// ==================== sending LORA part ====================
 #ifdef LORA_ENABLED
 void sendLoRaReport(float temp, float hum, float press, int risk) {
   // Format: J:<Jour>,T:<Temp>,H:<Hum>,P:<Press>,R:<Risque>
@@ -568,7 +560,7 @@ void sendLoRaReport(float temp, float hum, float press, int risk) {
   Serial.print(F(": "));
   Serial.println(payload);
 
-  // Commande AT+SEND=<Address>,<Length>,<Data>
+  // cmd AT+SEND=<Address>,<Length>,<Data>
   Serial1.print(F("AT+SEND="));
   Serial1.print(LORA_DEST_ADDRESS);
   Serial1.print(F(","));
@@ -578,14 +570,14 @@ void sendLoRaReport(float temp, float hum, float press, int risk) {
 
   delay(500);
 
-  // Lire réponse
+  // read answer
   while (Serial1.available()) {
     String response = Serial1.readStringUntil('\n');
     Serial.print(F("[LORA] Reponse: "));
     Serial.println(response);
   }
 
-  // Afficher sur LCD
+  // display on LCD
   lcd.clear();
   lcd.print("LoRa Envoye!");
   lcd.setCursor(0, 1);
@@ -595,7 +587,7 @@ void sendLoRaReport(float temp, float hum, float press, int risk) {
 }
 #endif
 
-// ==================== AFFICHAGE LCD ====================
+// ==================== display LCD ====================
 
 void displayCurrentData() {
   if (validDays == 0 && measureCount == 0) {
@@ -610,7 +602,6 @@ void displayCurrentData() {
   lcd.clear();
 
   if (measureCount > 0) {
-    // Afficher moyenne du jour en cours
     float avgTemp = tempSum / measureCount;
     float avgHum = humSum / measureCount;
 
@@ -627,7 +618,6 @@ void displayCurrentData() {
     lcd.print(measureCount);
     lcd.print("/24");
   } else if (validDays > 0) {
-    // Afficher dernier jour enregistré
     int current = (historyIndex - 1 + HISTORY_SIZE) % HISTORY_SIZE;
     float temp = history[current].meantemp;
     float hum = history[current].humidity;
