@@ -5,8 +5,9 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 <p align="center">
-  <img src="docs/pict1.jpeg" alt="Large view of the rover" width="500" height="300"/>
+  <img src="docs/pict1.jpeg" alt="Large view of the rover" width="400"/>
 </p>
+
 ## Overview
 
 **Mildiou-AI** is a comprehensive IoRT solution designed for precision viticulture. It is an embedded system capable of predicting **Downy Mildew** (Mildiou) risks in advance by analyzing the local micro-climate using an **Artificial Neural Network (ANN)** running directly on a microcontroller (Edge Computing).
