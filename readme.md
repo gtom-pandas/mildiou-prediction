@@ -15,6 +15,7 @@
 The system is mounted on a remote-controlled **All-Terrain Rover** to perform localized measurements and transmits its analysis via **LoRa** (Long Range) to a supervision station, without requiring an Internet connection.
 
 This project was really meaningful to me and very relevant, afterward i decide to buy myself some electronic components (arduino, camera, raspberry Pi) and I will start a new personal project related to agronomy field 
+
 ---
 
 ## System Architecture
