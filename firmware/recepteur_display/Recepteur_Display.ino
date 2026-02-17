@@ -1,13 +1,11 @@
 /*
- * RÉCEPTEUR MILDIOU - VERSION "CHESS ENGINE"
- * Arduino UNO R3 + Shield DFRobot (Variante NHD)
- * * Basé sur la configuration matérielle validée par Chess.pde
+ * mildew receptor
+ * Arduino UNO R3 + Shield DFRobot 
  */
 
 #include "U8glib.h"
 
-// ==================== LA LIGNE MAGIQUE (Tirée de votre Chess.pde) ====================
-// SCK=13, MOSI=11, CS=10, A0=9, RST=8
+// ==================== i've struggle on this one but found the good path via Chess.pde example on arduino IDE ====================
 U8GLIB_NHD_C12864 u8g(13, 11, 10, 9, 8); 
 
 // ==================== VARIABLES ====================
@@ -20,17 +18,15 @@ bool donneesRecues = false;
 
 // ==================== SETUP ====================
 void setup() {
-  // 1. Sécurité Rétroéclairage (Au cas où)
   pinMode(7, OUTPUT);
   digitalWrite(7, HIGH); 
 
-  // 2. Rotation de l'écran (Comme dans Chess.pde)
   u8g.setRot180();
 
   // 3. LoRa
   Serial.begin(115200);
 
-  // Config LoRa (Aveugle)
+  // Config LoRa 
   delay(1000);
   Serial.println(F("AT+Address=2"));
   delay(100);
@@ -43,7 +39,6 @@ void setup() {
 
 // ==================== LOOP ====================
 void loop() {
-  // 1. Écoute Radio (Non bloquante)
   while (Serial.available()) {
     String msg = Serial.readStringUntil('\n');
     msg.trim();
@@ -53,7 +48,7 @@ void loop() {
     }
   }
 
-  // 2. Boucle d'affichage (Picture Loop U8glib)
+  // display loop
   u8g.firstPage();  
   do {
     if (donneesRecues) {
@@ -63,17 +58,15 @@ void loop() {
     }
   } while( u8g.nextPage() );
   
-  // Petit délai pour la stabilité
   delay(50);
 }
 
-// ==================== DESSIN ====================
+// ==================== drawframe ====================
 void dessinerAttente() {
-  u8g.setFont(u8g_font_6x10); // Police standard U8glib
+  u8g.setFont(u8g_font_6x10); 
   u8g.drawStr(10, 20, "STATION MILDIOU");
   u8g.drawStr(10, 40, "Attente LoRa...");
   
-  // Petit cadre comme dans Chess pour confirmer le dessin
   u8g.drawFrame(0, 0, 128, 64);
 }
 
@@ -82,13 +75,13 @@ void dessinerDonnees() {
   u8g.drawStr(2, 10, "STATION MILDIOU");
   u8g.drawLine(0, 12, 127, 12);
 
-  // Risque (Texte plus grand)
+  // risk 
   u8g.setFont(u8g_font_helvB18); 
   if (risque == 0) u8g.drawStr(15, 35, "FAIBLE");
   else if (risque == 1) u8g.drawStr(15, 35, "MOYEN");
   else u8g.drawStr(15, 35, "ELEVE !");
 
-  // Valeurs
+  // values
   u8g.setFont(u8g_font_6x10);
   u8g.setPrintPos(0, 50);
   u8g.print("J:"); u8g.print(jour);
